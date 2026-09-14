@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Copa Trifogon · Simulador</title>
+<title>Copa Triangular · Simulador</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
 
@@ -260,7 +260,7 @@
 
   <header>
     <div class="kicker">SIMULADOR · MARIO STRIKERS</div>
-    <h1>Copa Trifogon</h1>
+    <h1>Copa Triangular</h1>
     <p>Configura equipos y copas ganadas, elige a cuántas vueltas se juega la liga y define al campeón. Sin empates: si el marcador queda igualado, marca si el gol decisivo fue en muerte súbita.</p>
     <div class="bg-switcher">
       <button class="bg-btn" id="bg-btn-pitch" type="button"><span class="swatch" style="background:#164C34"></span>Cancha</button>
@@ -350,7 +350,7 @@ function freshState(){
   };
 }
 
-let state = freshState();
+var state = freshState();
 
 function teamName(i){ return state.teams[i].name && state.teams[i].name.trim() ? state.teams[i].name.trim() : DEFAULT_NAMES[i]; }
 function teamTitles(i){ return state.teams[i].titles || 0; }
@@ -681,14 +681,16 @@ document.getElementById('reset-btn').addEventListener('click', ()=>{
   setTheme(keepTheme);
   render();
 });
+
 setTheme(state.theme);
 render();
-<!-- Sincronización en tiempo real para tu torneo de fútbol -->
+</script>
+
+<!-- Sincronización en tiempo real con Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  // Las llaves de tu proyecto "fulbito"
   const firebaseConfig = {
     apiKey: "AIzaSyD-CW9Tyx8Ny2Mb3akqthTELWp_TNKQvRM",
     authDomain: "fulbito-5ee26.firebaseapp.com",
@@ -703,34 +705,36 @@ render();
   const db = getDatabase(app);
   const torneoRef = ref(db, 'torneoState');
 
-  let cargandoDesdeNube = false;
+  let procesandoNube = false;
 
-  // 1. Cuando ALGUIEN cambia un gol/equipo/copa en la nube, se actualiza tu pantalla
+  // 1. Recibir cambios desde la nube y pintarlos
   onValue(torneoRef, (snapshot) => {
     const nuevoEstado = snapshot.val();
-    if (nuevoEstado) {
-      cargandoDesdeNube = true;
-      state = nuevoEstado; 
-      if (typeof render === 'function') {
-        render(); 
-      }
-      cargandoDesdeNube = false;
+    if (nuevoEstado && window.state) {
+      procesandoNube = true;
+      window.state = nuevoEstado;
+      if (typeof window.render === 'function') window.render();
+      procesandoNube = false;
     }
   });
 
-  // 2. Cuando TÚ cambias un gol/equipo/copa, manda el objeto "state" completo a la nube
-  if (typeof render === 'function') {
-    const renderOriginal = render;
-    window.render = function() {
-      renderOriginal();
-      if (!cargandoDesdeNube) {
-        set(torneoRef, state);
-      }
-    };
-  }
-</script>
+  // 2. Enganchar el render real del simulador para empujar cambios locales a Firebase
+  const engancharRender = () => {
+    if (typeof window.render === 'function' && !window._renderEnganchado) {
+      window._renderEnganchado = true;
+      const fnRenderOriginal = window.render;
 
-</body>
-</html>
+      window.render = function() {
+        fnRenderOriginal();
+        if (!procesandoNube && window.state) {
+          set(torneoRef, window.state);
+        }
+      };
+    }
+  };
+
+  engancharRender();
+  setTimeout(engancharRender, 500);
+</script>
 </body>
 </html>
