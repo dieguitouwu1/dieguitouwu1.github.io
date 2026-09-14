@@ -706,13 +706,27 @@ render();
   const torneoRef = ref(db, 'torneoState');
 
   let procesandoNube = false;
+  const NULL_TAG = '__NULL__';
+
+  // Firebase borra los valores `null` y los objetos vacíos `{}` al guardarlos.
+  // Antes de enviar: cambiamos null -> NULL_TAG para que sobreviva el viaje.
+  function sanitizeForFirebase(obj){
+    return JSON.parse(JSON.stringify(obj, (k, v) => v === null ? NULL_TAG : v));
+  }
+  // Al recibir: devolvemos NULL_TAG -> null, y si algún campo desapareció por
+  // completo (como tiebreaks:{} cuando no hay empates), lo rellenamos con el
+  // valor por defecto del estado inicial para que nada quede undefined.
+  function hydrateFromFirebase(raw){
+    const revivido = JSON.parse(JSON.stringify(raw), (k, v) => v === NULL_TAG ? null : v);
+    return Object.assign({}, freshState(), revivido);
+  }
 
   // 1. Recibir cambios desde la nube y pintarlos
   onValue(torneoRef, (snapshot) => {
     const nuevoEstado = snapshot.val();
     if (nuevoEstado && window.state) {
       procesandoNube = true;
-      window.state = nuevoEstado;
+      window.state = hydrateFromFirebase(nuevoEstado);
       if (typeof window.render === 'function') window.render();
       procesandoNube = false;
     }
@@ -727,7 +741,7 @@ render();
       window.render = function() {
         fnRenderOriginal();
         if (!procesandoNube && window.state) {
-          set(torneoRef, window.state);
+          set(torneoRef, sanitizeForFirebase(window.state));
         }
       };
     }
