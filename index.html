@@ -681,9 +681,45 @@ document.getElementById('reset-btn').addEventListener('click', ()=>{
   setTheme(keepTheme);
   render();
 });
-
 setTheme(state.theme);
 render();
 </script>
+
+  <!-- Elementos de la pantalla en tiempo real -->
+  <h1 id="texto-compartido">Cargando...</h1>
+  <input type="text" id="caja-escritura" placeholder="Escribe aquí...">
+  <button id="boton-enviar">Enviar</button>
+
+  <!-- Script de Firebase en tiempo real -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-CW9Tyx8Ny2Mb3akqthTELWp_TNKQvRM",
+      authDomain: "fulbito-5ee26.firebaseapp.com",
+      databaseURL: "https://fulbito-5ee26-default-rtdb.firebaseio.com",
+      projectId: "fulbito-5ee26",
+      storageBucket: "fulbito-5ee26.firebasestorage.app",
+      messagingSenderId: "1062427306163",
+      appId: "1:1062427306163:web:967336e94df927e44668c6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const datoRef = ref(db, 'mensajePizarra');
+
+    onValue(datoRef, (snapshot) => {
+      const dato = snapshot.val();
+      if (dato) document.getElementById('texto-compartido').innerText = dato;
+    });
+
+    document.getElementById('boton-enviar').addEventListener('click', () => {
+      const texto = document.getElementById('caja-escritura').value;
+      set(datoRef, texto);
+      document.getElementById('caja-escritura').value = '';
+    });
+  </script>
+  
 </body>
 </html>
